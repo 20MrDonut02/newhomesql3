@@ -1,40 +1,35 @@
-CREATE TABLE genres (
-  id_genre INT PRIMARY KEY,
-  name_genre VARCHAR(50)
-);
-
-CREATE TABLE performers (
-  id_performer INT PRIMARY KEY,
-  name_performer VARCHAR(50)
-);
-
-CREATE TABLE performer_genres (
+create table if not exists genres(
+	id_genre INT primary key,
+	name_genre VARCHAR(50)
+	);
+create table if not exists perfomers(
+	id_performer INT PRIMARY KEY,
+  	name_performer VARCHAR(50)
+	);
+CREATE table if not exists perfomer_genres (
   id_genre INT,
   id_performer INT,
   FOREIGN KEY (id_genre) REFERENCES genres(id_genre),
-  FOREIGN KEY (id_performer) REFERENCES performers(id_performer)
+  FOREIGN KEY (id_performer) REFERENCES perfomers(id_performer)
 );
-
-CREATE TABLE albums (
+CREATE table  if not exists albums (
   id_album INT PRIMARY KEY,
   name_album VARCHAR(50),
   release_year INT
 );
-
-CREATE TABLE album_participants (
+CREATE TABLE album_members (
   id_performer INT,
   id_album INT,
-  FOREIGN KEY (id_performer) REFERENCES performers(id_performer),
+  FOREIGN KEY (id_performer) REFERENCES perfomers(id_performer),
   FOREIGN KEY (id_album) REFERENCES albums(id_album)
 );
 
-CREATE TABLE if not exists tracks (
+CREATE TABLE tracks (
   id_track INT PRIMARY KEY,
   name_track VARCHAR(50),
-  duration_track TIME,
+  duration_track INT,
   id_album INT,
   FOREIGN KEY (id_album) REFERENCES albums(id_album)
-  
 );
 
 CREATE TABLE collections (
@@ -43,16 +38,15 @@ CREATE TABLE collections (
   release_year INT
 );
 
-CREATE table if not exists collection_tracks (
+CREATE TABLE collection_tracks (
   id_track INT,
   id_collection INT,
   FOREIGN KEY (id_track) REFERENCES tracks(id_track),
   FOREIGN KEY (id_collection) REFERENCES collections(id_collection)
 );
 
-insert into performers (id_performer,name_performer)
-values
-(1,'Elton John'),
+insert into perfomers(id_performer,name_performer)
+values (1,'Elton John'),
 (2,'Madonna'),
 (3,'Coldplay'),
 (4,'Adele');
@@ -69,13 +63,6 @@ values
 (2,'True Blue',1986),
 (3,'A Rush of Blood to the Head',2002)
 
-insert into collections (id_collection,name_collection,release_year)
-values
-(1,'Best of Elton John',1990),
-(2,'80s Pop Hits',1980),
-(3,'Chillout Classics',2007),
-(4,'Love Ballads',2020)
-
 insert into  tracks (id_track,name_track,duration_track,id_album)
 values
 (1,'Rocket Man',282,1),
@@ -85,7 +72,14 @@ values
 (5,'Vogue',317,2),
 (6,'Fix You',294,3)
 
-insert into album_participants (id_performer,id_album)
+insert into collections (id_collection,name_collection,release_year)
+values
+(1,'Best of Elton John',1990),
+(2,'80s Pop Hits',1980),
+(3,'Chillout Classics',2007),
+(4,'Love Ballads',2020)
+
+insert into album_members (id_performer,id_album)
 values
 (1,1),
 (2,2),
@@ -100,37 +94,48 @@ values
 (5,1),
 (6,2)
 
-insert into performer_genres (id_performer,id_genre)
+insert into perfomer_genres (id_performer,id_genre)
 values
 (1,2),
 (2,2),
 (3,1),
 (4,3)
 
-select name_track,duration_track
-from tracks
-order by duration_track desc
-limit 1
+insert into  tracks (id_track,name_track,duration_track,id_album)
+values
+(7,'my own',300,3)
 
-select name_track 
-from tracks 
-where duration_track >= 330
+
+insert into  tracks (id_track,name_track,duration_track,id_album)
+values
+(9,'myself',30,2)
+
+
+SELECT name_track, duration_track 
+FROM tracks 
+WHERE duration_track = (SELECT MAX(duration_track) FROM tracks);
+
+SELECT name_track 
+FROM tracks 
+WHERE duration_track >= 60 * 3.5;
 
 select name_collection 
 from collections 
 where release_year  between 2018 and 2020;
 
 select name_performer 
-from performers 
+from perfomers 
 where name_performer not like '% %'
 
-SELECT name_track 
+select  name_track 
 FROM tracks
-WHERE name_track  ILIKE '%мой%' OR name_track  ILIKE '%my%';
+WHERE lower(name_track) LIKE 'my %'
+OR lower(name_track) LIKE '% my %'
+OR lower(name_track) LIKE '% my';
 
 SELECT g.name_genre, COUNT(pg.id_performer) AS performer_count
 FROM genres g
-LEFT JOIN performer_genres pg ON g.id_genre = pg.id_genre
+LEFT JOIN perfomer_genres pg ON g.id_genre = pg.id_genre
 GROUP BY g.name_genre;
 
 SELECT COUNT(t.id_track) AS track_count
@@ -138,17 +143,25 @@ FROM tracks t
 INNER JOIN albums a ON t.id_album = a.id_album
 WHERE a.release_year BETWEEN 2019 AND 2020;
 
-SELECT p.name_performer
-FROM performers p
-LEFT JOIN album_participants ap ON p.id_performer = ap.id_performer
-LEFT JOIN albums a ON ap.id_album = a.id_album
-WHERE a.release_year != 2020 OR a.release_year IS NULL;
+select name_track,duration_track
+from tracks
+where duration_track = (select MAX(duration_track) from tracks)
 
-SELECT c.name_collection
-FROM collections c
-INNER JOIN collection_tracks ct ON c.id_collection = ct.id_collection
-INNER JOIN tracks t ON ct.id_track = t.id_track
-INNER JOIN albums a ON t.id_album = a.id_album
-INNER JOIN album_participants ap ON a.id_album = ap.id_album
-INNER JOIN performers p ON ap.id_performer = p.id_performer
-WHERE p.name_performer = 'Elton John'; 
+
+SELECT p.name_performer
+FROM perfomers p
+WHERE p.id_performer NOT IN (
+    SELECT ap.id_performer
+    FROM album_members ap
+    LEFT JOIN albums a ON ap.id_album = a.id_album
+    WHERE a.release_year = 2020
+);
+
+SELECT c.name_collection 
+FROM collections c 
+INNER JOIN collection_tracks ct ON c.id_collection = ct.id_collection 
+INNER JOIN tracks t ON ct.id_track = t.id_track 
+INNER JOIN albums a ON t.id_album = a.id_album 
+INNER JOIN album_members am ON a.id_album = am.id_album 
+INNER JOIN perfomers p ON am.id_performer = p.id_performer 
+WHERE p.name_performer = 'Elton John';
